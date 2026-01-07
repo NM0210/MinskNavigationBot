@@ -2,6 +2,7 @@
 using MinskNavigationBot.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -10,7 +11,6 @@ using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
-using Telegram.Bot.Types.InputFiles;
 
 
 namespace MinskNavigationBot;
@@ -21,6 +21,39 @@ public static class BotHandlers
    public static async Task OnError(Exception exception, HandleErrorSource source)
     {
         Console.WriteLine(exception); // just dump the exception to the console
+    }
+    
+    // Получение пути к папке Photos
+    private static string GetPhotosPath()
+    {
+        // Сначала проверяем папку Photos рядом с исполняемым файлом (для запуска из bin/Debug/net8.0)
+        var assemblyLocation = System.Reflection.Assembly.GetExecutingAssembly().Location;
+        var assemblyDir = Path.GetDirectoryName(assemblyLocation);
+        var photosPathNearExe = Path.Combine(assemblyDir ?? "", "Photos");
+        
+        if (Directory.Exists(photosPathNearExe))
+        {
+            return photosPathNearExe;
+        }
+        
+        // Если не нашли, ищем в корне проекта
+        var projectRoot = assemblyDir;
+        
+        // Поднимаемся вверх по директориям, пока не найдем папку с .csproj файлом
+        while (projectRoot != null && !File.Exists(Path.Combine(projectRoot, "MinskNavigationBot.csproj")))
+        {
+            var parent = Directory.GetParent(projectRoot);
+            if (parent == null) break;
+            projectRoot = parent.FullName;
+        }
+        
+        // Если не нашли .csproj, используем текущую директорию
+        if (projectRoot == null || !File.Exists(Path.Combine(projectRoot, "MinskNavigationBot.csproj")))
+        {
+            projectRoot = Directory.GetCurrentDirectory();
+        }
+        
+        return Path.Combine(projectRoot, "Photos");
     }
 
     // method that handle messages received by the bot:
@@ -243,7 +276,7 @@ public static class BotHandlers
             // Начало квиза
             else if (query.Data == "playGame")
             {
-                await StartQuiz(query.Message!.Chat, query.Message.Id, query.From.Id);
+                await StartQuiz(query.Message!.Chat, query.From.Id);
                 await Globals.Bot.AnswerCallbackQuery(query.Id);
             }
             // Обработка ответа на вопрос квиза
@@ -252,7 +285,7 @@ public static class BotHandlers
                 var parts = query.Data.Replace("quiz_answer_", "").Split('_');
                 if (parts.Length >= 2 && int.TryParse(parts[0], out int questionIndex) && int.TryParse(parts[1], out int selectedPlaceId))
                 {
-                    await ProcessQuizAnswer(query.Message!.Chat, query.Message.Id, query.From.Id, questionIndex, selectedPlaceId);
+                    await ProcessQuizAnswer(query.Message!.Chat, query.From.Id, questionIndex, selectedPlaceId);
                     await Globals.Bot.AnswerCallbackQuery(query.Id);
                 }
             }
@@ -262,7 +295,7 @@ public static class BotHandlers
                 var questionIndexStr = query.Data.Replace("quiz_next_", "");
                 if (int.TryParse(questionIndexStr, out int nextQuestionIndex))
                 {
-                    await ShowQuizQuestion(query.Message!.Chat, query.Message.Id, query.From.Id, nextQuestionIndex);
+                    await ShowQuizQuestion(query.Message!.Chat, query.From.Id, nextQuestionIndex);
                     await Globals.Bot.AnswerCallbackQuery(query.Id);
                 }
             }
@@ -521,6 +554,7 @@ public static class BotHandlers
 
 
     // Показ деталей места с картой
+    // Показ деталей места с картой
     private static async Task ShowPlaceDetails(Chat chat, int messageId, int placeId, long userId, bool sendLocation = false)
     {
         using (var db = new BotDbContext())
@@ -531,33 +565,33 @@ public static class BotHandlers
                 await Globals.Bot.EditMessageText(chat, messageId, "❌ Место не найдено.");
                 return;
             }
-            
+
             // Получаем пользователя
             var user = await GetOrCreateUser(userId, null, null, null);
-            
+
             // Проверяем, посещено ли место
             var isVisited = db.UserVisits.Any(v => v.UserId == user.Id && v.PlaceId == placeId);
-            
+
             // Проверяем, есть ли активное напоминание
             var hasReminder = db.Reminders.Any(r => r.UserId == user.Id && r.PlaceId == placeId && !r.IsCompleted && r.ReminderDate >= DateTime.UtcNow);
-            
+
             string placeInfo = $"📍 <b>{place.Name}</b>\n\n";
-            
+
             if (!string.IsNullOrEmpty(place.Description))
                 placeInfo += $"📝 {place.Description}\n\n";
-            
+
             if (!string.IsNullOrEmpty(place.Address))
                 placeInfo += $"📍 Адрес: {place.Address}\n";
-            
+
             if (!string.IsNullOrEmpty(place.District))
                 placeInfo += $"🏘️ Район: {place.District}\n";
-            
+
             if (!string.IsNullOrEmpty(place.Category))
                 placeInfo += $"🏷️ Категория: {place.Category}\n";
-            
+
             if (isVisited)
                 placeInfo += $"\n✅ <b>Вы уже посещали это место</b>\n";
-            
+
             if (hasReminder)
             {
                 var reminder = db.Reminders.FirstOrDefault(r => r.UserId == user.Id && r.PlaceId == placeId && !r.IsCompleted);
@@ -567,47 +601,79 @@ public static class BotHandlers
 
             // Создаём кнопки
             var buttons = new List<InlineKeyboardButton[]>();
-            
+
             if (!isVisited)
             {
                 buttons.Add(new[]
                 {
-                    InlineKeyboardButton.WithCallbackData("✅ Отметить как посещенное", $"visit_{placeId}")
-                });
+                InlineKeyboardButton.WithCallbackData("✅ Отметить как посещенное", $"visit_{placeId}")
+            });
             }
-            
+
             if (!hasReminder)
             {
                 buttons.Add(new[]
                 {
-                    InlineKeyboardButton.WithCallbackData("🔔 Установить напоминание", $"reminder_{placeId}")
-                });
+                InlineKeyboardButton.WithCallbackData("🔔 Установить напоминание", $"reminder_{placeId}")
+            });
             }
-            
+
             buttons.Add(new[]
             {
-                InlineKeyboardButton.WithCallbackData("← Назад к списку", "seePlaces"),
-                InlineKeyboardButton.WithCallbackData("🏠 Главное меню", "seeProfile")
-            });
-            
+            InlineKeyboardButton.WithCallbackData("← Назад к списку", "seePlaces"),
+            InlineKeyboardButton.WithCallbackData("🏠 Главное меню", "seeProfile")
+        });
+
             var keyboard = new InlineKeyboardMarkup(buttons);
-            
+
             // Отправляем информацию о месте
-            await Globals.Bot.EditMessageText(chat, messageId, placeInfo, 
+            await Globals.Bot.EditMessageText(chat, messageId, placeInfo,
                 replyMarkup: keyboard, parseMode: ParseMode.Html);
-            
-            // Отправляем локацию только при первом выборе
+
+            // Отправляем локацию + фото только при первом выборе
             if (sendLocation)
             {
+                // 1) Геопозиция (метка)
                 try
                 {
                     await Globals.Bot.SendLocation(chat, (float)place.Latitude, (float)place.Longitude);
                 }
                 catch { }
+
+                // 2) Фото места
+                try
+                {
+                    if (!string.IsNullOrEmpty(place.ImageUrl))
+                    {
+                        var photosPath = GetPhotosPath();
+                        var photoPath = Path.Combine(photosPath, place.ImageUrl);
+
+                        if (File.Exists(photoPath))
+                        {
+                            using var fileStream = File.OpenRead(photoPath);
+                            var inputFile = new Telegram.Bot.Types.InputFileStream(fileStream, Path.GetFileName(photoPath));
+
+                            await Globals.Bot.SendPhoto(
+                                chatId: chat.Id,
+                                photo: inputFile,
+                                caption: $"📸 <b>{place.Name}</b>",
+                                parseMode: ParseMode.Html
+                            );
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Фото не найдено: {photoPath}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Ошибка при отправке фото места: " + ex.Message);
+                }
             }
         }
     }
-    
+
     // Отметка места как посещенного
     private static async Task MarkPlaceAsVisited(Chat chat, int messageId, int placeId, long userId, string callbackQueryId)
     {
@@ -1127,7 +1193,7 @@ public static class BotHandlers
     }
     
     // Начало квиза
-    private static async Task StartQuiz(Chat chat, int messageId, long userId)
+    private static async Task StartQuiz(Chat chat, long userId)
     {
         using (var db = new BotDbContext())
         {
@@ -1135,7 +1201,7 @@ public static class BotHandlers
             
             if (allPlaces.Count < 4)
             {
-                await Globals.Bot.EditMessageText(chat, messageId,
+                await Globals.Bot.SendMessage(chat,
                     "❌ Недостаточно мест с изображениями для квиза. Нужно минимум 4 места.",
                     replyMarkup: Menu.MainMenu);
                 return;
@@ -1157,22 +1223,22 @@ public static class BotHandlers
             
             QuizStates[userId] = quizState;
             
-            await ShowQuizQuestion(chat, messageId, userId, 0);
+            await ShowQuizQuestion(chat, userId, 0);
         }
     }
     
     // Показ вопроса квиза
-    private static async Task ShowQuizQuestion(Chat chat, int messageId, long userId, int questionIndex)
+    private static async Task ShowQuizQuestion(Chat chat, long userId, int questionIndex)
     {
         if (!QuizStates.TryGetValue(userId, out var quizState))
         {
-            await Globals.Bot.EditMessageText(chat, messageId, "❌ Квиз не найден. Начните заново.", replyMarkup: Menu.MainMenu);
+            await Globals.Bot.SendMessage(chat, "❌ Квиз не найден. Начните заново.", replyMarkup: Menu.MainMenu);
             return;
         }
         
         if (questionIndex >= quizState.Questions.Count)
         {
-            await FinishQuiz(chat, messageId, userId);
+            await FinishQuiz(chat, userId);
             return;
         }
         
@@ -1218,93 +1284,139 @@ public static class BotHandlers
             {
                 try
                 {
-                    await Globals.Bot.SendPhoto(
-                        chatId: chat.Id,
-                        photo: InputFile.FromUri(questionPlace.ImageUrl),
-                        caption: questionText,
-                        replyMarkup: keyboard,
-                        parseMode: ParseMode.Html
-                    );
+                    var photosPath = GetPhotosPath();
+                    var photoPath = Path.Combine(photosPath, questionPlace.ImageUrl);
                     
-                    // Удаляем предыдущее сообщение, если возможно
-                    try
+                    if (File.Exists(photoPath))
                     {
-                        await Globals.Bot.DeleteMessage(chat.Id, messageId);
+                        // В версии 22.7.6 используем InputFileStream для отправки локального файла
+                        // Открываем файл для чтения
+                        using (var fileStream = File.OpenRead(photoPath))
+                        {
+                            // InputFileStream находится в пространстве имен Telegram.Bot.Types
+                            // Используем полное имя типа для избежания ошибок компиляции
+                            var inputFile = new Telegram.Bot.Types.InputFileStream(fileStream, Path.GetFileName(photoPath));
+                            // В версии 22.7.6 метод SendPhoto возвращает Task<Message>
+                            await Globals.Bot.SendPhoto(
+                                chatId: chat.Id,
+                                photo: inputFile,
+                                caption: questionText,
+                                replyMarkup: keyboard,
+                                parseMode: ParseMode.Html
+                            );
+                        }
                     }
-                    catch { }
+                    else
+                    {
+                        // Если файл не найден, отправляем текстовое сообщение
+                        await Globals.Bot.SendMessage(chat, 
+                            questionText + $"\n\n⚠️ Фото не найдено: {questionPlace.ImageUrl}",
+                            replyMarkup: keyboard, parseMode: ParseMode.Html);
+                    }
                 }
-                catch
+                catch (Exception ex)
                 {
                     // Если не удалось отправить фото, отправляем текстовое сообщение
-                    await Globals.Bot.EditMessageText(chat, messageId, 
-                        questionText + $"\n\n📷 Изображение: {questionPlace.ImageUrl}",
+                    Console.WriteLine($"Ошибка при отправке фото: {ex.Message}");
+                    await Globals.Bot.SendMessage(chat, 
+                        questionText + $"\n\n⚠️ Не удалось загрузить фото",
                         replyMarkup: keyboard, parseMode: ParseMode.Html);
                 }
             }
             else
             {
-                await Globals.Bot.EditMessageText(chat, messageId, questionText, 
+                await Globals.Bot.SendMessage(chat, questionText, 
                     replyMarkup: keyboard, parseMode: ParseMode.Html);
             }
         }
         catch
         {
-            await Globals.Bot.EditMessageText(chat, messageId, questionText, 
+            await Globals.Bot.SendMessage(chat, questionText, 
                 replyMarkup: keyboard, parseMode: ParseMode.Html);
         }
     }
-    
+
     // Обработка ответа на вопрос квиза
-    private static async Task ProcessQuizAnswer(Chat chat, int messageId, long userId, int questionIndex, int selectedPlaceId)
+    private static async Task ProcessQuizAnswer(Chat chat, long userId, int questionIndex, int selectedPlaceId)
     {
         if (!QuizStates.TryGetValue(userId, out var quizState))
         {
-            await Globals.Bot.EditMessageText(chat, messageId, "❌ Квиз не найден. Начните заново.", replyMarkup: Menu.MainMenu);
+            await Globals.Bot.SendMessage(chat, "❌ Квиз не найден. Начните заново.", replyMarkup: Menu.MainMenu);
             return;
         }
-        
+
         if (questionIndex >= quizState.Questions.Count)
         {
-            await FinishQuiz(chat, messageId, userId);
+            await FinishQuiz(chat, userId);
             return;
         }
-        
+
         var correctPlace = quizState.Questions[questionIndex];
         var isCorrect = correctPlace.Id == selectedPlaceId;
-        
+
         if (isCorrect)
-        {
             quizState.CorrectAnswers++;
-        }
-        
+
         quizState.SelectedPlaceIds.Add(selectedPlaceId);
-        
-        var resultText = isCorrect 
-            ? "✅ <b>Правильно!</b>" 
+
+        var resultText = isCorrect
+            ? "✅ <b>Правильно!</b>"
             : $"❌ <b>Неправильно!</b>\n\nПравильный ответ: <b>{correctPlace.Name}</b>";
-        
+
         var nextButton = new InlineKeyboardMarkup(new[]
         {
-            new[]
+        new[]
+        {
+            InlineKeyboardButton.WithCallbackData("➡️ Следующий вопрос", $"quiz_next_{questionIndex + 1}")
+        },
+        new[]
+        {
+            InlineKeyboardButton.WithCallbackData("🏠 Главное меню", "mainMenu")
+        }
+    });
+
+        // Пытаемся отправить фото места вместе с результатом
+        try
+        {
+            if (!string.IsNullOrEmpty(correctPlace.ImageUrl))
             {
-                InlineKeyboardButton.WithCallbackData("➡️ Следующий вопрос", $"quiz_next_{questionIndex + 1}")
-            },
-            new[]
-            {
-                InlineKeyboardButton.WithCallbackData("🏠 Главное меню", "mainMenu")
+                var photosPath = GetPhotosPath();
+                var photoPath = Path.Combine(photosPath, correctPlace.ImageUrl);
+
+                if (File.Exists(photoPath))
+                {
+                    using (var fileStream = File.OpenRead(photoPath))
+                    {
+                        var inputFile = new Telegram.Bot.Types.InputFileStream(fileStream, Path.GetFileName(photoPath));
+
+                        await Globals.Bot.SendPhoto(
+                            chatId: chat.Id,
+                            photo: inputFile,
+                            caption: resultText,
+                            replyMarkup: nextButton,
+                            parseMode: ParseMode.Html
+                        );
+                        return;
+                    }
+                }
             }
-        });
-        
-        await Globals.Bot.EditMessageText(chat, messageId, resultText, 
-            replyMarkup: nextButton, parseMode: ParseMode.Html);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при отправке фото результата: {ex.Message}");
+        }
+
+        // Фоллбек: если фото не получилось — отправляем текст как раньше
+        await Globals.Bot.SendMessage(chat, resultText, replyMarkup: nextButton, parseMode: ParseMode.Html);
     }
-    
+
+
     // Завершение квиза
-    private static async Task FinishQuiz(Chat chat, int messageId, long userId)
+    private static async Task FinishQuiz(Chat chat, long userId)
     {
         if (!QuizStates.TryGetValue(userId, out var quizState))
         {
-            await Globals.Bot.EditMessageText(chat, messageId, "❌ Квиз не найден.", replyMarkup: Menu.MainMenu);
+            await Globals.Bot.SendMessage(chat, "❌ Квиз не найден.", replyMarkup: Menu.MainMenu);
             return;
         }
         
@@ -1352,7 +1464,7 @@ public static class BotHandlers
                 }
             });
             
-            await Globals.Bot.EditMessageText(chat, messageId, resultText, 
+            await Globals.Bot.SendMessage(chat, resultText, 
                 replyMarkup: buttons, parseMode: ParseMode.Html);
             
             // Проверяем достижения
