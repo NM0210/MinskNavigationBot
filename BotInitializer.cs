@@ -17,7 +17,17 @@ public static class BotInitializer
         }
 
         Globals.Bot = new TelegramBotClient(token);
-
+        
+        var receiverOptions = new ReceiverOptions
+        {
+            AllowedUpdates = Array.Empty<UpdateType>()
+        };
+        
+        Globals.Bot.StartReceiving(
+            updateHandler: HandleUpdateAsync,
+            pollingErrorHandler: HandleErrorAsync,
+            receiverOptions: receiverOptions
+        );
     }
     private static async Task HandleUpdateAsync(
         ITelegramBotClient bot,

@@ -13,9 +13,15 @@ namespace MinskNavigationBot
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("Profile","seeProfile"),
-                InlineKeyboardButton.WithCallbackData("Places", "seePlaces"),
-                InlineKeyboardButton.WithCallbackData("Quiz", "playGame"),
+                InlineKeyboardButton.WithCallbackData("👤 Профиль", "seeProfile"),
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("📍 Места", "seePlaces"),
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🎮 Квиз", "playGame"),
             }
         });
 
@@ -33,6 +39,10 @@ namespace MinskNavigationBot
             {
                 InlineKeyboardButton.WithCallbackData("🏆 Достижения", "achievments"),
             },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🏠 Главное меню", "mainMenu"),
+            }
         });
     }
 }

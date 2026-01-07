@@ -14,6 +14,7 @@ public class Place
     public double Longitude { get; set; }
 
     public string? Category { get; set; }
+    public string? ImageUrl { get; set; }
 
     public ICollection<UserVisit> Visits { get; set; } = new List<UserVisit>();
     public ICollection<Reminder> Reminders { get; set; } = new List<Reminder>();

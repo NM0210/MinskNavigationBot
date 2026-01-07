@@ -11,6 +11,7 @@ public class BotDbContext : DbContext
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<Achievement> Achievements => Set<Achievement>();
     public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
+    public DbSet<QuizResult> QuizResults => Set<QuizResult>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder options)
     {

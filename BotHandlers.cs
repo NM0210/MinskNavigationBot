@@ -10,6 +10,7 @@ using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
+using Telegram.Bot.Types.InputFiles;
 
 
 namespace MinskNavigationBot;
@@ -23,8 +24,19 @@ public static class BotHandlers
     }
 
     // method that handle messages received by the bot:
-    private static readonly Dictionary<long, int> PendingReminderPlace
-    = new();
+    private static readonly Dictionary<long, int> PendingReminderPlace = new();
+    
+    // Состояние квиза для каждого пользователя
+    private static readonly Dictionary<long, QuizState> QuizStates = new();
+    
+    private class QuizState
+    {
+        public List<Place> Questions { get; set; } = new();
+        public List<Place> AllPlaces { get; set; } = new();
+        public int CurrentQuestionIndex { get; set; }
+        public int CorrectAnswers { get; set; }
+        public List<int> SelectedPlaceIds { get; set; } = new();
+    }
     public static async Task OnMessage(Message msg, UpdateType type)
     {
         if (msg.From != null)
@@ -38,8 +50,9 @@ public static class BotHandlers
         }
         if (msg.Text == "/start")
         {
-            await Globals.Bot.SendMessage(msg.Chat, "Welcome! Pick one direction",
-                replyMarkup: Menu.MainMenu);
+            await Globals.Bot.SendMessage(msg.Chat, 
+                "🏠 <b>Добро пожаловать!</b>\n\nВыберите действие:",
+                replyMarkup: Menu.MainMenu, parseMode: ParseMode.Html);
         }
         // Обработка ввода даты и времени для напоминания
         else if (msg.Text != null && msg.Text.Contains(".") && msg.Text.Contains(":"))
@@ -67,8 +80,9 @@ public static class BotHandlers
          
             if (query.Data == "seeProfile")
             {
-                
-                await Globals.Bot.EditMessageText(query.Message!.Chat, query.Message.Id,$"Welcome,{query.From.FirstName}!",replyMarkup:Menu.ProfileMenu);
+                await Globals.Bot.EditMessageText(query.Message!.Chat, query.Message.Id,
+                    $"👤 <b>Профиль</b>\n\nДобро пожаловать, {query.From.FirstName}!",
+                    replyMarkup: Menu.ProfileMenu, parseMode: ParseMode.Html);
             }
             //вывод из бд 
             if (query.Data == "seePlaces" || query.Data == "filter_reset")
@@ -218,6 +232,40 @@ public static class BotHandlers
                 await ShowReminders(query.Message!.Chat, query.Message.Id, query.From.Id);
                 await Globals.Bot.AnswerCallbackQuery(query.Id);
             }
+            // Возврат в главное меню
+            else if (query.Data == "mainMenu")
+            {
+                await Globals.Bot.EditMessageText(query.Message!.Chat, query.Message.Id,
+                    "🏠 <b>Главное меню</b>\n\nВыберите действие:",
+                    replyMarkup: Menu.MainMenu, parseMode: ParseMode.Html);
+                await Globals.Bot.AnswerCallbackQuery(query.Id);
+            }
+            // Начало квиза
+            else if (query.Data == "playGame")
+            {
+                await StartQuiz(query.Message!.Chat, query.Message.Id, query.From.Id);
+                await Globals.Bot.AnswerCallbackQuery(query.Id);
+            }
+            // Обработка ответа на вопрос квиза
+            else if (query.Data != null && query.Data.StartsWith("quiz_answer_"))
+            {
+                var parts = query.Data.Replace("quiz_answer_", "").Split('_');
+                if (parts.Length >= 2 && int.TryParse(parts[0], out int questionIndex) && int.TryParse(parts[1], out int selectedPlaceId))
+                {
+                    await ProcessQuizAnswer(query.Message!.Chat, query.Message.Id, query.From.Id, questionIndex, selectedPlaceId);
+                    await Globals.Bot.AnswerCallbackQuery(query.Id);
+                }
+            }
+            // Переход к следующему вопросу квиза
+            else if (query.Data != null && query.Data.StartsWith("quiz_next_"))
+            {
+                var questionIndexStr = query.Data.Replace("quiz_next_", "");
+                if (int.TryParse(questionIndexStr, out int nextQuestionIndex))
+                {
+                    await ShowQuizQuestion(query.Message!.Chat, query.Message.Id, query.From.Id, nextQuestionIndex);
+                    await Globals.Bot.AnswerCallbackQuery(query.Id);
+                }
+            }
             else
             {
                 await Globals.Bot.AnswerCallbackQuery(query.Id);
@@ -244,7 +292,8 @@ public static class BotHandlers
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("← Назад", "seeProfile")
+                InlineKeyboardButton.WithCallbackData("← Назад", "seeProfile"),
+                InlineKeyboardButton.WithCallbackData("🏠 Главное меню", "mainMenu")
             }
         });
         
@@ -960,6 +1009,38 @@ public static class BotHandlers
                 Icon = "🔔",
                 Type = AchievementType.ReminderMaster,
                 RequiredValue = 5
+            },
+            new Achievement
+            {
+                Name = "Новичок квиза",
+                Description = "Правильно ответьте на 5 вопросов в квизе",
+                Icon = "🎯",
+                Type = AchievementType.QuizCompleted,
+                RequiredValue = 5
+            },
+            new Achievement
+            {
+                Name = "Знаток квиза",
+                Description = "Правильно ответьте на 10 вопросов в квизе",
+                Icon = "🎓",
+                Type = AchievementType.QuizCompleted,
+                RequiredValue = 10
+            },
+            new Achievement
+            {
+                Name = "Мастер квиза",
+                Description = "Правильно ответьте на 15 вопросов в квизе",
+                Icon = "🏆",
+                Type = AchievementType.QuizCompleted,
+                RequiredValue = 15
+            },
+            new Achievement
+            {
+                Name = "Эксперт Минска",
+                Description = "Правильно ответьте на 50 вопросов во всех квизах",
+                Icon = "👑",
+                Type = AchievementType.QuizCompleted,
+                RequiredValue = 50
             }
         );
         
@@ -1017,6 +1098,309 @@ public static class BotHandlers
                     case AchievementType.ReminderMaster:
                         unlocked = reminders.Count >= achievement.RequiredValue;
                         break;
+                }
+                
+                if (unlocked)
+                {
+                    var userAchievement = new UserAchievement
+                    {
+                        UserId = user.Id,
+                        AchievementId = achievement.Id,
+                        UnlockedAt = DateTime.UtcNow
+                    };
+                    db.UserAchievements.Add(userAchievement);
+                    await db.SaveChangesAsync();
+                    
+                    // Уведомляем пользователя
+                    try
+                    {
+                        await Globals.Bot.SendMessage(user.TelegramId, 
+                            $"🎉 <b>Достижение разблокировано!</b>\n\n" +
+                            $"{achievement.Icon} <b>{achievement.Name}</b>\n" +
+                            $"{achievement.Description}", 
+                            parseMode: ParseMode.Html);
+                    }
+                    catch { }
+                }
+            }
+        }
+    }
+    
+    // Начало квиза
+    private static async Task StartQuiz(Chat chat, int messageId, long userId)
+    {
+        using (var db = new BotDbContext())
+        {
+            var allPlaces = db.Places.Where(p => !string.IsNullOrEmpty(p.ImageUrl)).ToList();
+            
+            if (allPlaces.Count < 4)
+            {
+                await Globals.Bot.EditMessageText(chat, messageId,
+                    "❌ Недостаточно мест с изображениями для квиза. Нужно минимум 4 места.",
+                    replyMarkup: Menu.MainMenu);
+                return;
+            }
+            
+            // Выбираем случайные 10-15 вопросов
+            var random = new Random();
+            var questionCount = Math.Min(random.Next(10, 16), allPlaces.Count);
+            var questions = allPlaces.OrderBy(x => random.Next()).Take(questionCount).ToList();
+            
+            var quizState = new QuizState
+            {
+                Questions = questions,
+                AllPlaces = allPlaces,
+                CurrentQuestionIndex = 0,
+                CorrectAnswers = 0,
+                SelectedPlaceIds = new List<int>()
+            };
+            
+            QuizStates[userId] = quizState;
+            
+            await ShowQuizQuestion(chat, messageId, userId, 0);
+        }
+    }
+    
+    // Показ вопроса квиза
+    private static async Task ShowQuizQuestion(Chat chat, int messageId, long userId, int questionIndex)
+    {
+        if (!QuizStates.TryGetValue(userId, out var quizState))
+        {
+            await Globals.Bot.EditMessageText(chat, messageId, "❌ Квиз не найден. Начните заново.", replyMarkup: Menu.MainMenu);
+            return;
+        }
+        
+        if (questionIndex >= quizState.Questions.Count)
+        {
+            await FinishQuiz(chat, messageId, userId);
+            return;
+        }
+        
+        var questionPlace = quizState.Questions[questionIndex];
+        var random = new Random();
+        
+        // Выбираем 3 случайных неправильных ответа
+        var wrongAnswers = quizState.AllPlaces
+            .Where(p => p.Id != questionPlace.Id)
+            .OrderBy(x => random.Next())
+            .Take(3)
+            .ToList();
+        
+        // Создаем список из 4 вариантов ответа (1 правильный + 3 неправильных)
+        var answers = new List<Place> { questionPlace };
+        answers.AddRange(wrongAnswers);
+        answers = answers.OrderBy(x => random.Next()).ToList();
+        
+        var questionText = $"❓ <b>Вопрос {questionIndex + 1} из {quizState.Questions.Count}</b>\n\n" +
+                          $"Как называется это место?";
+        
+        var buttons = new List<InlineKeyboardButton[]>();
+        
+        foreach (var answer in answers)
+        {
+            buttons.Add(new[]
+            {
+                InlineKeyboardButton.WithCallbackData($"📍 {answer.Name}", $"quiz_answer_{questionIndex}_{answer.Id}")
+            });
+        }
+        
+        buttons.Add(new[]
+        {
+            InlineKeyboardButton.WithCallbackData("🏠 Главное меню", "mainMenu")
+        });
+        
+        var keyboard = new InlineKeyboardMarkup(buttons);
+        
+        try
+        {
+            // Отправляем фото с вопросом
+            if (!string.IsNullOrEmpty(questionPlace.ImageUrl))
+            {
+                try
+                {
+                    await Globals.Bot.SendPhoto(
+                        chatId: chat.Id,
+                        photo: InputFile.FromUri(questionPlace.ImageUrl),
+                        caption: questionText,
+                        replyMarkup: keyboard,
+                        parseMode: ParseMode.Html
+                    );
+                    
+                    // Удаляем предыдущее сообщение, если возможно
+                    try
+                    {
+                        await Globals.Bot.DeleteMessage(chat.Id, messageId);
+                    }
+                    catch { }
+                }
+                catch
+                {
+                    // Если не удалось отправить фото, отправляем текстовое сообщение
+                    await Globals.Bot.EditMessageText(chat, messageId, 
+                        questionText + $"\n\n📷 Изображение: {questionPlace.ImageUrl}",
+                        replyMarkup: keyboard, parseMode: ParseMode.Html);
+                }
+            }
+            else
+            {
+                await Globals.Bot.EditMessageText(chat, messageId, questionText, 
+                    replyMarkup: keyboard, parseMode: ParseMode.Html);
+            }
+        }
+        catch
+        {
+            await Globals.Bot.EditMessageText(chat, messageId, questionText, 
+                replyMarkup: keyboard, parseMode: ParseMode.Html);
+        }
+    }
+    
+    // Обработка ответа на вопрос квиза
+    private static async Task ProcessQuizAnswer(Chat chat, int messageId, long userId, int questionIndex, int selectedPlaceId)
+    {
+        if (!QuizStates.TryGetValue(userId, out var quizState))
+        {
+            await Globals.Bot.EditMessageText(chat, messageId, "❌ Квиз не найден. Начните заново.", replyMarkup: Menu.MainMenu);
+            return;
+        }
+        
+        if (questionIndex >= quizState.Questions.Count)
+        {
+            await FinishQuiz(chat, messageId, userId);
+            return;
+        }
+        
+        var correctPlace = quizState.Questions[questionIndex];
+        var isCorrect = correctPlace.Id == selectedPlaceId;
+        
+        if (isCorrect)
+        {
+            quizState.CorrectAnswers++;
+        }
+        
+        quizState.SelectedPlaceIds.Add(selectedPlaceId);
+        
+        var resultText = isCorrect 
+            ? "✅ <b>Правильно!</b>" 
+            : $"❌ <b>Неправильно!</b>\n\nПравильный ответ: <b>{correctPlace.Name}</b>";
+        
+        var nextButton = new InlineKeyboardMarkup(new[]
+        {
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("➡️ Следующий вопрос", $"quiz_next_{questionIndex + 1}")
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🏠 Главное меню", "mainMenu")
+            }
+        });
+        
+        await Globals.Bot.EditMessageText(chat, messageId, resultText, 
+            replyMarkup: nextButton, parseMode: ParseMode.Html);
+    }
+    
+    // Завершение квиза
+    private static async Task FinishQuiz(Chat chat, int messageId, long userId)
+    {
+        if (!QuizStates.TryGetValue(userId, out var quizState))
+        {
+            await Globals.Bot.EditMessageText(chat, messageId, "❌ Квиз не найден.", replyMarkup: Menu.MainMenu);
+            return;
+        }
+        
+        using (var db = new BotDbContext())
+        {
+            var user = await GetOrCreateUser(userId, null, null, null);
+            
+            // Сохраняем результат квиза
+            var quizResult = new QuizResult
+            {
+                UserId = user.Id,
+                TotalQuestions = quizState.Questions.Count,
+                CorrectAnswers = quizState.CorrectAnswers,
+                CompletedAt = DateTime.UtcNow
+            };
+            
+            db.QuizResults.Add(quizResult);
+            await db.SaveChangesAsync();
+            
+            var percentage = (int)((double)quizState.CorrectAnswers / quizState.Questions.Count * 100);
+            
+            var resultText = $"🎉 <b>Квиз завершен!</b>\n\n" +
+                           $"📊 <b>Результаты:</b>\n" +
+                           $"✅ Правильных ответов: {quizState.CorrectAnswers} из {quizState.Questions.Count}\n" +
+                           $"📈 Процент правильных: {percentage}%\n\n";
+            
+            if (percentage == 100)
+                resultText += "🌟 Отличный результат! Вы знаток Минска!";
+            else if (percentage >= 80)
+                resultText += "👏 Отличная работа!";
+            else if (percentage >= 60)
+                resultText += "👍 Хороший результат!";
+            else
+                resultText += "💪 Продолжайте изучать Минск!";
+            
+            var buttons = new InlineKeyboardMarkup(new[]
+            {
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData("🎮 Пройти еще раз", "playGame")
+                },
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData("🏠 Главное меню", "mainMenu")
+                }
+            });
+            
+            await Globals.Bot.EditMessageText(chat, messageId, resultText, 
+                replyMarkup: buttons, parseMode: ParseMode.Html);
+            
+            // Проверяем достижения
+            await CheckQuizAchievements(userId, quizState.CorrectAnswers);
+            
+            // Удаляем состояние квиза
+            QuizStates.Remove(userId);
+        }
+    }
+    
+    // Проверка достижений квиза
+    private static async Task CheckQuizAchievements(long userId, int correctAnswers)
+    {
+        using (var db = new BotDbContext())
+        {
+            var user = await GetOrCreateUser(userId, null, null, null);
+            
+            await InitializeAchievements(db);
+            
+            var quizResults = db.QuizResults.Where(qr => qr.UserId == user.Id).ToList();
+            var totalCorrectAnswers = quizResults.Sum(qr => qr.CorrectAnswers);
+            var totalQuizzes = quizResults.Count;
+            
+            var userAchievements = db.UserAchievements
+                .Where(ua => ua.UserId == user.Id)
+                .Select(ua => ua.AchievementId)
+                .ToList();
+            
+            var allAchievements = db.Achievements
+                .Where(a => a.Type == AchievementType.QuizCompleted)
+                .ToList();
+            
+            foreach (var achievement in allAchievements)
+            {
+                if (userAchievements.Contains(achievement.Id))
+                    continue;
+                
+                bool unlocked = false;
+                
+                // Достижения за правильные ответы в одном квизе
+                if (achievement.RequiredValue <= 15) // Предполагаем, что это достижение за правильные ответы в одном квизе
+                {
+                    unlocked = correctAnswers >= achievement.RequiredValue;
+                }
+                // Достижения за общее количество правильных ответов
+                else if (achievement.RequiredValue > 15)
+                {
+                    unlocked = totalCorrectAnswers >= achievement.RequiredValue;
                 }
                 
                 if (unlocked)
