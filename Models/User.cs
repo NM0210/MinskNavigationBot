@@ -6,6 +6,9 @@ public class User
     public ICollection<Reminder> Reminders { get; set; } = new List<Reminder>();
     public ICollection<UserAchievement> Achievements { get; set; } = new List<UserAchievement>();
     public ICollection<QuizResult> QuizResults { get; set; } = new List<QuizResult>();
+
+    public ICollection<Review> Reviews { get; set; } = new List<Review>(); // ✅ добавили
+
     public int Id { get; set; }
     public long TelegramId { get; set; }
     public string? Username { get; set; }

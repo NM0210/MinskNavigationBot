@@ -13,6 +13,8 @@ public class BotDbContext : DbContext
     public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
     public DbSet<QuizResult> QuizResults => Set<QuizResult>();
 
+    public DbSet<Review> Reviews => Set<Review>(); // ✅ добавили
+
     protected override void OnConfiguring(DbContextOptionsBuilder options)
     {
         options.UseSqlite("Data Source=bot.db");

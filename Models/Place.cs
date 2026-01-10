@@ -1,5 +1,4 @@
-﻿
-namespace MinskNavigationBot.Models;
+﻿namespace MinskNavigationBot.Models;
 
 public class Place
 {
@@ -18,4 +17,6 @@ public class Place
 
     public ICollection<UserVisit> Visits { get; set; } = new List<UserVisit>();
     public ICollection<Reminder> Reminders { get; set; } = new List<Reminder>();
+
+    public ICollection<Review> Reviews { get; set; } = new List<Review>(); // ✅ добавили
 }
