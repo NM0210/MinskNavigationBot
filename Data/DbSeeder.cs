@@ -17,9 +17,10 @@ public static class DbSeeder
                 Description = "Центральная площадь Минска",
                 Address = "пл. Победы",
                 District = "Центральный",
-                Latitude = 53.9145,
-                Longitude = 27.5706,
-                Category = "Достопримечательность"
+                Latitude = 53.908522,
+                Longitude = 27.574821,
+                Category = "Достопримечательность",
+                ImageUrl = "площадь_победы.jpg" // Имя файла из папки Photos
             },
             new Place
             {
@@ -27,9 +28,10 @@ public static class DbSeeder
                 Description = "Городской парк отдыха",
                 Address = "ул. Фрунзе",
                 District = "Центральный",
-                Latitude = 53.9076,
-                Longitude = 27.5624,
-                Category = "Парк"
+                Latitude = 53.903133,
+                Longitude = 27.573285,
+                Category = "Парк",
+                ImageUrl = "парк_горького.jpg" // Имя файла из папки Photos
             },
             new Place
             {
@@ -37,9 +39,10 @@ public static class DbSeeder
                 Description = "Крупнейший музей изобразительного искусства",
                 Address = "ул. Ленина, 20",
                 District = "Центральный",
-                Latitude = 53.9025,
-                Longitude = 27.5611,
-                Category = "Музей"
+                Latitude = 53.898475,
+                Longitude = 27.560780,
+                Category = "Музей",
+                ImageUrl = "нац_худож_музей.png" // Имя файла из папки Photos
             },
             new Place
             {
@@ -47,9 +50,10 @@ public static class DbSeeder
                 Description = "Главная площадь Минска",
                 Address = "пл. Октябрьская",
                 District = "Центральный",
-                Latitude = 53.8969,
-                Longitude = 27.5478,
-                Category = "Достопримечательность"
+                Latitude = 53.902554,
+                Longitude = 27.561508,
+                Category = "Достопримечательность",
+                ImageUrl = "октябрьская_площадь.jpg" // Имя файла из папки Photos
             },
             new Place
             {
@@ -57,9 +61,10 @@ public static class DbSeeder
                 Description = "Белорусская кухня",
                 Address = "пр. Независимости, 16",
                 District = "Центральный",
-                Latitude = 53.9042,
-                Longitude = 27.5615,
-                Category = "Ресторан"
+                Latitude = 53.898548,
+                Longitude = 27.555489,
+                Category = "Ресторан",
+                ImageUrl = "васильки.jpg" // Имя файла из папки Photos
             },
             
             // Первомайский район
@@ -69,9 +74,10 @@ public static class DbSeeder
                 Description = "Главная библиотека страны",
                 Address = "пр. Независимости, 116",
                 District = "Первомайский",
-                Latitude = 53.9311,
-                Longitude = 27.6454,
-                Category = "Культура"
+                Latitude = 53.931783,
+                Longitude = 27.645678,
+                Category = "Культура",
+                ImageUrl = "нац_библиотека.jpg"
             },
             new Place
             {
@@ -79,9 +85,10 @@ public static class DbSeeder
                 Description = "Национальный музей истории ВОВ",
                 Address = "пр. Победителей, 8",
                 District = "Первомайский",
-                Latitude = 53.9275,
-                Longitude = 27.5361,
-                Category = "Музей"
+                Latitude = 53.916413,
+                Longitude = 27.537925,
+                Category = "Музей",
+                ImageUrl = "музей_вов.jpg"
             },
             new Place
             {
@@ -89,9 +96,10 @@ public static class DbSeeder
                 Description = "Парк культуры и отдыха",
                 Address = "пр. Независимости",
                 District = "Первомайский",
-                Latitude = 53.9367,
-                Longitude = 27.6183,
-                Category = "Парк"
+                Latitude = 53.922055,
+                Longitude = 27.617000,
+                Category = "Парк",
+                ImageUrl = "парк_челюскинцев.jpg"
             },
             new Place
             {
@@ -99,9 +107,10 @@ public static class DbSeeder
                 Description = "Крупный торговый центр",
                 Address = "пр. Независимости, 3",
                 District = "Первомайский",
-                Latitude = 53.9333,
-                Longitude = 27.6500,
-                Category = "Торговый центр"
+                Latitude = 53.895469,
+                Longitude = 27.548170,
+                Category = "Торговый центр",
+                ImageUrl = "тц_столица.jpg"
             },
             
             // Советский район
@@ -111,9 +120,10 @@ public static class DbSeeder
                 Description = "Парк на берегу Комсомольского озера",
                 Address = "ул. Орловская",
                 District = "Советский",
-                Latitude = 53.9389,
-                Longitude = 27.4856,
-                Category = "Парк"
+                Latitude = 53.917660,
+                Longitude = 27.539205,
+                Category = "Парк",
+                ImageUrl = "парк_победы.jpg"
             },
             new Place
             {
@@ -121,9 +131,10 @@ public static class DbSeeder
                 Description = "Зоологический парк",
                 Address = "ул. Ташкентская, 40",
                 District = "Советский",
-                Latitude = 53.9456,
-                Longitude = 27.4989,
-                Category = "Развлечения"
+                Latitude = 53.850021,
+                Longitude = 27.634711,
+                Category = "Развлечения",
+                ImageUrl = "минск_зоопарк.jpg"
             },
             new Place
             {
@@ -131,9 +142,10 @@ public static class DbSeeder
                 Description = "Белорусская кухня в историческом здании",
                 Address = "ул. Революционная, 10",
                 District = "Советский",
-                Latitude = 53.9322,
-                Longitude = 27.4922,
-                Category = "Ресторан"
+                Latitude = 53.900458,
+                Longitude = 27.574949,
+                Category = "Ресторан",
+                ImageUrl = "камяница.jpg"
             },
             
             // Фрунзенский район
@@ -143,9 +155,10 @@ public static class DbSeeder
                 Description = "Парк отдыха",
                 Address = "ул. Кальварийская",
                 District = "Фрунзенский",
-                Latitude = 53.8889,
-                Longitude = 27.5111,
-                Category = "Парк"
+                Latitude = 55.684820,
+                Longitude = 37.501954,
+                Category = "Парк",
+                ImageUrl = "парк_50лет_октября.jpg"
             },
             new Place
             {
@@ -153,9 +166,10 @@ public static class DbSeeder
                 Description = "Современный торговый центр",
                 Address = "ул. Кальварийская, 24",
                 District = "Фрунзенский",
-                Latitude = 53.8900,
-                Longitude = 27.5200,
-                Category = "Торговый центр"
+                Latitude = 53.861058,
+                Longitude = 27.479425,
+                Category = "Торговый центр",
+                ImageUrl = "тц_титан.jpg"
             },
             new Place
             {
@@ -163,9 +177,10 @@ public static class DbSeeder
                 Description = "Музей истории города",
                 Address = "ул. Революционная, 10А",
                 District = "Фрунзенский",
-                Latitude = 53.8956,
-                Longitude = 27.5056,
-                Category = "Музей"
+                Latitude = 53.904578,
+                Longitude = 27.549492,
+                Category = "Музей",
+                ImageUrl = "музей_истории_минска.jpg"
             },
             
             // Ленинский район
@@ -175,29 +190,22 @@ public static class DbSeeder
                 Description = "Парк имени белорусского поэта",
                 Address = "ул. Янки Купалы",
                 District = "Ленинский",
-                Latitude = 53.9111,
-                Longitude = 27.5833,
-                Category = "Парк"
+                Latitude = 53.906629,
+                Longitude = 27.567064,
+                Category = "Парк",
+                ImageUrl = "парк_янки_купалы.jpg"
             },
-            new Place
-            {
-                Name = "Национальный академический театр оперы и балета",
-                Description = "Главный театр оперы и балета",
-                Address = "пл. Парижской Коммуны, 1",
-                District = "Ленинский",
-                Latitude = 53.9089,
-                Longitude = 27.5756,
-                Category = "Культура"
-            },
+
             new Place
             {
                 Name = "Ресторан 'Купаловский'",
                 Description = "Традиционная белорусская кухня",
                 Address = "пр. Победителей, 2",
                 District = "Ленинский",
-                Latitude = 53.9100,
-                Longitude = 27.5800,
-                Category = "Ресторан"
+                Latitude = 53.907095,
+                Longitude = 27.552632, 
+                Category = "Ресторан",
+                ImageUrl = "ресторан_купаловский.jpg"
             },
             
             // Заводской район
@@ -207,9 +215,10 @@ public static class DbSeeder
                 Description = "Парк для отдыха и прогулок",
                 Address = "ул. Долгобродская",
                 District = "Заводской",
-                Latitude = 53.8667,
-                Longitude = 27.5333,
-                Category = "Парк"
+                Latitude = 53.933110,
+                Longitude = 27.570060,
+                Category = "Парк",
+                ImageUrl = "парк_дружбы_народов.jpg"
             },
             new Place
             {
@@ -217,31 +226,23 @@ public static class DbSeeder
                 Description = "Районный торговый центр",
                 Address = "ул. Долгобродская, 41",
                 District = "Заводской",
-                Latitude = 53.8689,
-                Longitude = 27.5356,
-                Category = "Торговый центр"
+                Latitude = 53.886143,
+                Longitude = 27.619808,
+                Category = "Торговый центр",
+                ImageUrl = "алми.jpg"
             },
             
             // Московский район
-            new Place
-            {
-                Name = "Парк Дружбы",
-                Description = "Парк культуры и отдыха",
-                Address = "ул. Маяковского",
-                District = "Московский",
-                Latitude = 53.8556,
-                Longitude = 27.5111,
-                Category = "Парк"
-            },
             new Place
             {
                 Name = "Развлекательный центр 'Фристайл'",
                 Description = "Кинотеатр и развлечения",
                 Address = "пр. Дзержинского, 104",
                 District = "Московский",
-                Latitude = 53.8578,
-                Longitude = 27.5133,
-                Category = "Развлечения"
+                Latitude = 53.861915,
+                Longitude = 27.480363,
+                Category = "Развлечения",
+                ImageUrl = "фристайл.jpg"
             }
         );
 
